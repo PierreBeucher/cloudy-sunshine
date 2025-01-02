@@ -1,50 +1,56 @@
 version: '3'
 
 tasks:
+  default:
+    cmds:
+    - task --list-all
 
   # Build and run a debug container from local source code
   # Example: task run-local -- list
   run-local:
-    cmd: >-
-      docker build --progress=plain . -t crafteo/cloudypad:local && 
-      CLOUDYPAD_IMAGE="crafteo/cloudypad:local" ./cloudypad.sh {{.CLI_ARGS}}
+    cmds:
+    - docker build --progress=plain . -t crafteo/cloudypad:local &&  CLOUDYPAD_IMAGE="crafteo/cloudypad:local" ./cloudypad.sh {{.CLI_ARGS}}
 
   run-local-no-build:
-    cmd: >-
-      CLOUDYPAD_IMAGE="crafteo/cloudypad:local" ./cloudypad.sh {{.CLI_ARGS}}
+    cmds:
+    - CLOUDYPAD_IMAGE="crafteo/cloudypad:local" ./cloudypad.sh {{.CLI_ARGS}}
 
   #
   # Build and test
   #
 
   test-unit:
-    cmd: npx mocha --config test/unit/.mocharc.json ./test/unit --recursive
+    cmds:
+    - npx mocha --config test/unit/.mocharc.json ./test/unit --recursive
 
   build-local:
-    cmd: docker build -t crafteo/cloudypad:local .
+    cmds:
+    - docker build -t crafteo/cloudypad:local .
 
   build-smoke-test:
     cmds:
     - task: build-local
     - docker run crafteo/cloudypad:local --version
     - >-
-      [ $(docker run crafteo/cloudypad:local --version) = $(cat package.json | jq .version -r) ] 
-      || echo "Version in container image doesn't match package.json version"
+      [ $(docker run crafteo/cloudypad:local --version) = $(cat package.json | jq .version -r) ]  || echo "Version in container image doesn't match package.json version"
 
   test-create-and-destroy:
-    cmd: test/integ/create-and-destroy.sh
+    cmds:
+    - test/integ/create-and-destroy.sh
 
   # Detect potential circular deps with Madge
   test-circular-deps:
-    cmd: npx -y madge --ts-config ./tsconfig.json -c .
-    
+    cmds:
+    - npx -y madge --ts-config ./tsconfig.json -c .
+
   #
   # Utils
   #
 
   mdbook-serve:
     dir: docs
-    cmd: mdbook serve
+    cmds:
+    - mdbook serve
 
   # Generate Typescript Paperspace client from OpenAPI specifications
   paperspace-client-gen:
@@ -67,21 +73,18 @@ tasks:
         "/machines/{id}/start": .paths."/machines/{id}/start",
         "/machines/{id}/stop": .paths."/machines/{id}/stop",
       }}' > {{ .PAPERSPACE_OPENAPI_DIR }}/machines-only.json
-    
+
     # # Cleanup old files before generation
     - rm -rf {{ .PAPERSPACE_GENERATED_DIR }} || true
 
     # Run generator
-    - >- 
-      podman run -it --rm -v $PWD:/local -w /local docker.io/openapitools/openapi-generator-cli:latest@sha256:6747991566e4c3e43a30d5982f21da08c1cad78e95093fab04f494687b341788 generate
-      -i {{ .PAPERSPACE_OPENAPI_DIR }}/machines-only.json
-      --skip-validate-spec
-      -g typescript-axios
-      -o {{ .PAPERSPACE_GENERATED_DIR }}
+    - >-
+      podman run -it --rm -v $PWD:/local -w /local docker.io/openapitools/openapi-generator-cli:latest@sha256:6747991566e4c3e43a30d5982f21da08c1cad78e95093fab04f494687b341788 generate -i {{ .PAPERSPACE_OPENAPI_DIR }}/machines-only.json --skip-validate-spec -g typescript-axios -o {{ .PAPERSPACE_GENERATED_DIR }}
 
   #
   # Release
   #
 
   release-create:
-    cmd: ./hack/release-create.sh
+    cmds:
+    - ./hack/release-create.sh

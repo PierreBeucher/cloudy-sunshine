@@ -52,6 +52,7 @@
     "@pulumi/azure-native": "^2.52.0",
     "@pulumi/gcp": "^7.34.0",
     "@pulumi/pulumi": "^3.125.0",
+    "@runpod-infra/pulumi": "^1.9.99",
     "axios": "^1.7.2",
     "commander": "^12.1.0",
     "dockerode": "^3.3.0",

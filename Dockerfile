@@ -39,7 +39,7 @@ RUN npm install
 # ansible required for build as packaged with node code
 COPY ansible ansible
 COPY src src
-COPY LICENSE.txt tsconfig.json . 
+COPY LICENSE.txt tsconfig.json ./
 
 RUN npm run build
 
