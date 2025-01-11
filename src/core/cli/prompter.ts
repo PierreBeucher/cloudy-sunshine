@@ -94,7 +94,7 @@ export abstract class AbstractInputPrompter<A extends CreateCliArgs, I extends C
 
     async completeCliInput(cliArgs: A): Promise<I> {
         const partialInput = this.cliArgsIntoInput(cliArgs)
-        const input = await this.promptInput(partialInput, { overwriteExisting: cliArgs.overwriteExisting })
+        const input = await this.promptInput(partialInput, { overwriteExisting: cliArgs.overwriteExisting, autoApprove: cliArgs.yes })
         return input
     }
 

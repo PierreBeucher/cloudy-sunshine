@@ -46,7 +46,7 @@ export class GcpInputPrompter extends AbstractInputPrompter<GcpCreateCliArgs, Gc
 
     protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<GcpInstanceInput>, createOptions: InstanceCreateOptions): Promise<GcpInstanceInput> {
 
-        this.logger.debug(`Starting Gcp prompt with default opts: ${JSON.stringify(defaultInput)}`)
+        this.logger.debug(`Starting Gcp prompt with defaultInput: ${JSON.stringify(defaultInput)} and createOptions: ${JSON.stringify(createOptions)}`)
 
         if(!createOptions.autoApprove){
             await this.informCloudProviderQuotaWarning(CLOUDYPAD_PROVIDER_GCP, "https://cloudypad.gg/cloud-provider-setup/gcp.html")

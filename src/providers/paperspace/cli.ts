@@ -40,7 +40,7 @@ export class PaperspaceInputPrompter extends AbstractInputPrompter<PaperspaceCre
 
     protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<PaperspaceInstanceInput>, createOptions: InstanceCreateOptions): Promise<PaperspaceInstanceInput> {
 
-        this.logger.debug(`Starting Paperspace prompt with default opts: ${JSON.stringify(defaultInput)}`)
+        this.logger.debug(`Starting Paperspace prompt with defaultInput: ${JSON.stringify(defaultInput)} and createOptions: ${JSON.stringify(createOptions)}`)
 
         if(!createOptions.autoApprove){
             await this.informCloudProviderQuotaWarning(CLOUDYPAD_PROVIDER_PAPERSPACE, "https://cloudypad.gg/cloud-provider-setup/paperspace.html")

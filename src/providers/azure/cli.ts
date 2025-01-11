@@ -79,7 +79,7 @@ export class AzureInputPrompter extends AbstractInputPrompter<AzureCreateCliArgs
 
     protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<AzureInstanceInput>, createOptions: InstanceCreateOptions): Promise<AzureInstanceInput> {
 
-        this.logger.debug(`Starting Azure prompt with default opts: ${JSON.stringify(defaultInput)}`)
+        this.logger.debug(`Starting Azure prompt with defaultInput: ${JSON.stringify(defaultInput)} and createOptions: ${JSON.stringify(createOptions)}`)
         
         if(!createOptions.autoApprove){
             await this.informCloudProviderQuotaWarning(CLOUDYPAD_PROVIDER_AZURE, "https://cloudypad.gg/cloud-provider-setup/azure.html")
