@@ -24,9 +24,9 @@ cloudypad create
 #### Quotas
 
 You may need to increase quota to create the related instance type. If you get an error related to quota:
-- Go to AWS console and open "Service Quotas" service
-- Go to _AWS Services_ > search for _Amazon Elastic Compute Cloud (Amazon EC2)_ and open it
-- Search for _Running On-Demand G and VT instances_ (or the related instance type) and request a quota increase
+- Go to [AWS EC2 quota console](https://us-east-1.console.aws.amazon.com/servicequotas/home/services/ec2/quotas) (or search for "Quota" in the AWS console and go to _Amazon Elastic Compute Cloud (Amazon EC2)_ quota page)
+- For Spot instances: search for _All G and VT Spot Instance Requests_ (or the related instance type) and request a quota increase
+- For On-Demand instances: search for _Running On-Demand G and VT instances_ (or the related instance type) and request a quota increase
 - Use a quota value according to the instance type you want to use. For example, `2xlarge` requires at least 8 vCPU.
 
 See [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) for details.

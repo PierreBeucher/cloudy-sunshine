@@ -35,6 +35,22 @@ tasks:
   test-circular-deps:
     cmd: npx -y madge --ts-config ./tsconfig.json -c .
   
+  test-integ-ts-specs:
+    prompt: Will run integration tests for AWS, Paperspace and Pulumi, creating and destroying real resources.
+    cmds:
+    - task: test-integ-ts-specs-aws
+    - task:  test-integ-ts-specs-paperspace
+    - task: test-integ-ts-specs-pulumi
+  
+  test-integ-ts-specs-aws:
+    - npx mocha --config test/integ/.mocharc.json test/integ/aws --recursive
+
+  test-integ-ts-specs-pulumi:
+    - npx mocha --config test/integ/.mocharc.json test/integ/pulumi --recursive
+
+  test-integ-ts-specs-paperspace:
+    - npx mocha --config test/integ/.mocharc.json test/integ/paperspace --recursive
+
   test-integ-full-lifecycle-all:
     cmds:
     - task: test-integ-full-lifecycle-aws

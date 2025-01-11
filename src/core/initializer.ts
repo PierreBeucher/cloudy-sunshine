@@ -62,7 +62,7 @@ export class InteractiveInstanceInitializer {
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error)
             this.analyticsEvent("create_instance_error", { errorMessage: errMsg })
-            throw new Error(`Error initializing instance`, { cause: error })
+            throw new Error(`Error initializing instance: ${errMsg}`, { cause: error})
         }
     }
 

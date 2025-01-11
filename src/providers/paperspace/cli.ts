@@ -1,6 +1,6 @@
 import { PaperspaceInstanceInput } from "./state"
 import { CommonInstanceInput } from "../../core/state/state"
-import { AbstractInputPrompter } from "../../core/cli/prompter";
+import { AbstractInputPrompter, InstanceCreateOptions } from "../../core/cli/prompter";
 import { select, input, password } from '@inquirer/prompts';
 import { fetchApiKeyFromEnvironment } from './client/client';
 import lodash from 'lodash'
@@ -38,10 +38,14 @@ export class PaperspaceInputPrompter extends AbstractInputPrompter<PaperspaceCre
         }
     }
 
-    protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<PaperspaceInstanceInput>): Promise<PaperspaceInstanceInput> {
+    protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<PaperspaceInstanceInput>, createOptions: InstanceCreateOptions): Promise<PaperspaceInstanceInput> {
 
-        this.logger.debug(`Starting Paperspace prompt with default opts: ${JSON.stringify(defaultInput)}`)
+        this.logger.debug(`Starting Paperspace prompt with defaultInput: ${JSON.stringify(defaultInput)} and createOptions: ${JSON.stringify(createOptions)}`)
 
+        if(!createOptions.autoApprove){
+            await this.informCloudProviderQuotaWarning(CLOUDYPAD_PROVIDER_PAPERSPACE, "https://cloudypad.gg/cloud-provider-setup/paperspace.html")
+        }
+        
         const apiKey = await this.apiKey(defaultInput.provision?.apiKey)
         const machineType = await this.machineType(defaultInput.provision?.machineType)
         const diskSize = await this.diskSize(defaultInput.provision?.diskSize)

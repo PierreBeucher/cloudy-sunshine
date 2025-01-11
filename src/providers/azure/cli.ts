@@ -1,7 +1,7 @@
 import { AzureInstanceInput } from "./state"
 import { CommonInstanceInput } from "../../core/state/state"
-import { input, select } from '@inquirer/prompts';
-import { AbstractInputPrompter } from "../../core/cli/prompter";
+import { input, select, confirm } from '@inquirer/prompts';
+import { AbstractInputPrompter, InstanceCreateOptions } from "../../core/cli/prompter";
 import { AzureClient } from "../../tools/azure";
 import lodash from 'lodash'
 import { CLOUDYPAD_PROVIDER_AZURE, PUBLIC_IP_TYPE } from "../../core/const";
@@ -20,6 +20,42 @@ export interface AzureCreateCliArgs extends CreateCliArgs {
     publicIpType?: PUBLIC_IP_TYPE
     spot?: boolean
 }
+
+export const AZURE_SUPPORTED_GPU = [
+    { machineType: "Standard_NC4as_T4_v3", gpuType: "NVIDIA", gpuName: "Tesla T4", quotaName: "Standard NCASv3_T4 Family" },
+    { machineType: "Standard_NC8as_T4_v3", gpuType: "NVIDIA", gpuName: "Tesla T4", quotaName: "Standard NCASv3_T4 Family" },
+    { machineType: "Standard_NC16as_T4_v3", gpuType: "NVIDIA", gpuName: "Tesla T4", quotaName: "Standard NCASv3_T4 Family" },
+    { machineType: "Standard_NC64as_T4_v3", gpuType: "NVIDIA", gpuName: "Tesla T4", quotaName: "Standard NCASv3_T4 Family" },
+
+    { machineType: "Standard_NC6s_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNCSv3Family" },
+    { machineType: "Standard_NC12s_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNCSv3Family" },
+    { machineType: "Standard_NC24rs_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNCSv3Family" },
+    { machineType: "Standard_NC24s_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNCSv3Family" },
+    
+
+    { machineType: "Standard_NC24ads_A100_v4", gpuType: "NVIDIA", gpuName: "A100", quotaName: "standardNCADSA100v4Family" },
+    { machineType: "Standard_NC48ads_A100_v4", gpuType: "NVIDIA", gpuName: "A100", quotaName: "standardNCADSA100v4Family" },
+    { machineType: "Standard_NC96ads_A100_v4", gpuType: "NVIDIA", gpuName: "A100", quotaName: "standardNCADSA100v4Family" },
+
+    // { machineType: "Standard_NV4as_v4", gpuType: "AMD", gpuName: "Radeon MI25" },
+    // { machineType: "Standard_NV8as_v4", gpuType: "AMD", gpuName: "Radeon MI25" },
+    // { machineType: "Standard_NV16as_v4", gpuType: "AMD", gpuName: "Radeon MI25" },
+    // { machineType: "Standard_NV32as_v4", gpuType: "AMD", gpuName: "Radeon MI25" },
+    { machineType: "Standard_NV6s_v2", gpuType: "NVIDIA", gpuName: "Tesla P40", quotaName: "standardNVSv2Family" },
+    { machineType: "Standard_NV12s_v2", gpuType: "NVIDIA", gpuName: "Tesla P40", quotaName: "standardNVSv2Family" },
+    { machineType: "Standard_NV24s_v2", gpuType: "NVIDIA", gpuName: "Tesla P40", quotaName: "standardNVSv2Family" },
+
+    { machineType: "Standard_NV12s_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNVSv3Family" },
+    { machineType: "Standard_NV24s_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNVSv3Family" },
+    { machineType: "Standard_NV48s_v3", gpuType: "NVIDIA", gpuName: "Tesla V100", quotaName: "standardNVSv3Family" },
+    
+    { machineType: "Standard_NV6ads_A10_v5", gpuType: "NVIDIA", gpuName: "A10", quotaName: "StandardNVADSA10v5Family" },
+    { machineType: "Standard_NV12ads_A10_v5", gpuType: "NVIDIA", gpuName: "A10", quotaName: "StandardNVADSA10v5Family"},
+    { machineType: "Standard_NV18ads_A10_v5", gpuType: "NVIDIA", gpuName: "A10", quotaName: "StandardNVADSA10v5Family"},
+    { machineType: "Standard_NV36adms_A10_v5", gpuType: "NVIDIA", gpuName: "A10", quotaName: "StandardNVADSA10v5Family"},
+    { machineType: "Standard_NV36ads_A10_v5", gpuType: "NVIDIA", gpuName: "A10", quotaName: "StandardNVADSA10v5Family"},
+    { machineType: "Standard_NV72ads_A10_v5", gpuType: "NVIDIA", gpuName: "A10", quotaName: "StandardNVADSA10v5Family"},
+]
 
 export class AzureInputPrompter extends AbstractInputPrompter<AzureCreateCliArgs, AzureInstanceInput> {
     
@@ -41,14 +77,18 @@ export class AzureInputPrompter extends AbstractInputPrompter<AzureCreateCliArgs
         }
     }
 
-    protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<AzureInstanceInput>): Promise<AzureInstanceInput> {
+    protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<AzureInstanceInput>, createOptions: InstanceCreateOptions): Promise<AzureInstanceInput> {
 
-        this.logger.debug(`Starting Azure prompt with default opts: ${JSON.stringify(defaultInput)}`)
+        this.logger.debug(`Starting Azure prompt with defaultInput: ${JSON.stringify(defaultInput)} and createOptions: ${JSON.stringify(createOptions)}`)
         
+        if(!createOptions.autoApprove){
+            await this.informCloudProviderQuotaWarning(CLOUDYPAD_PROVIDER_AZURE, "https://cloudypad.gg/cloud-provider-setup/azure.html")
+        }
+
         const subscriptionId = await this.subscriptionId(defaultInput.provision?.subscriptionId)
         const useSpot = await this.useSpotInstance(defaultInput.provision?.useSpot)
         const location = await this.location(subscriptionId, defaultInput.provision?.location)
-        const vmSize = await this.instanceType(subscriptionId, location, defaultInput.provision?.vmSize)
+        const vmSize = await this.instanceType(subscriptionId, location, useSpot,defaultInput.provision?.vmSize)
         const diskSize = await this.diskSize(defaultInput.provision?.diskSize)
         const publicIpType = await this.publicIpType(defaultInput.provision?.publicIpType)
 
@@ -70,7 +110,7 @@ export class AzureInputPrompter extends AbstractInputPrompter<AzureCreateCliArgs
         
     }
 
-    private async instanceType(subscriptionId: string, location: string, instanceType?: string): Promise<string> {
+    private async instanceType(subscriptionId: string, location: string, useSpot: boolean, instanceType?: string): Promise<string> {
         if (instanceType) {
             return instanceType
         }
@@ -78,50 +118,31 @@ export class AzureInputPrompter extends AbstractInputPrompter<AzureCreateCliArgs
         const client = new AzureClient(AzureInputPrompter.name, subscriptionId)
         const allMachineSize = await client.listMachineSizes(location)
 
-        // Only include NVIDIA GPU suitable for gaming
-        // Skip  NV v4 (AMD GPU not supported yet)
-        const gpuSizes = allMachineSize.filter((size) => 
-            (size.name?.includes("Standard_NC") || size.name?.includes("Standard_NV"))
-            && !size.name!.match("Standard_NV.*_v4")
-        )
+        const supportedMachineTypes = AZURE_SUPPORTED_GPU.map(t => t.machineType)
 
-        // Leave choices to reasonable instances (between 4 and 16 vCPUs)
-        // and let user enter a specific type if needed
-        const choices = gpuSizes.filter(s => s.name)
-            .filter(s => s.numberOfCores && s.numberOfCores >= 4 && s.numberOfCores <= 16)
-            .map(s => ({ name: `${s.name}(vCPUs: ${s.numberOfCores}, RAM: ${s.memoryInMB}MB)`, value: s.name!}))
+        // List all machine types in current location
+        // And correlate with supported GPU types to show both size and GPU type
+        const vmSizes = allMachineSize.filter((machineSize) => {
+            return machineSize.name && supportedMachineTypes.indexOf(machineSize.name) > -1
+        })
+
+        const choices = vmSizes.filter(s => s.name !== undefined)
             .sort((a, b) => {
-                // name is set as per above filter
-                const nameA = a.name!
-                const nameB = b.name!
-            
-                // Split the VM size names into components
-                const partsA = nameA.split(/(?<=\D)(?=\d)|(?<=\d)(?=\D)/)
-                const partsB = nameB.split(/(?<=\D)(?=\d)|(?<=\d)(?=\D)/)
-            
-                for (let i = 0; i < Math.min(partsA.length, partsB.length); i++) {
-                    const partA = partsA[i];
-                    const partB = partsB[i];
-            
-                    // Compare numbers
-                    const numA = parseInt(partA, 10)
-                    const numB = parseInt(partB, 10)
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        if (numA !== numB) return numA - numB;
-                    } else {
-                        // Compare strings
-                        if (partA !== partB) return partA.localeCompare(partB)
-                    }
-                }
-            
-                // If all compared parts are equal, the shorter name should come first
-                return partsA.length - partsB.length;
+                // sort by cpu size
+                const cpuA = a.numberOfCores ?? 0
+                const cpuB = b.numberOfCores ?? 0
+                return cpuA - cpuB  
             })
-
+            .map(s => ({ name: 
+                    `${s.name} (vCPUs: ${s.numberOfCores ?? 'unknown'},` +
+                    `RAM: ${s.memoryInMB ? s.memoryInMB / 1024 : 'unknown'} GiB, ` +
+                    `GPU: NVIDIA ${AZURE_SUPPORTED_GPU.find(t => t.machineType === s.name)?.gpuName ?? 'unknown'})`, 
+                value: s.name!}))
+            
         choices.push({name: "Let me type an instance type", value: "_"})
 
         const selectedInstanceType = await select({
-            message: 'Choose a VM size:',
+            message: 'Choose a VM size (sorted by vCPU count):',
             choices: choices,
             loop: false
         })
@@ -130,6 +151,35 @@ export class AzureInputPrompter extends AbstractInputPrompter<AzureCreateCliArgs
             return await input({
                 message: 'Enter machine type:',
             })
+        }
+
+        // Check quota for selected instance type
+        const supportedGpuType = AZURE_SUPPORTED_GPU.find(supported => supported.machineType == selectedInstanceType)
+        const selectedInstanceTypeDetails = allMachineSize.find(m => m.name === selectedInstanceType)
+        if(supportedGpuType !== undefined && selectedInstanceTypeDetails !== undefined && selectedInstanceTypeDetails.numberOfCores !== undefined) {
+            const currentQuota = await client.getComputeQuota(supportedGpuType.quotaName, location)
+            
+            this.logger.debug(`Quota for ${selectedInstanceType}: limit ${currentQuota}, instance require ${selectedInstanceTypeDetails.numberOfCores} cores`)
+
+            if(currentQuota !== undefined && currentQuota < selectedInstanceTypeDetails.numberOfCores) {
+                const confirmQuota = await confirm({
+                    message: `Uh oh. It seems quotas for machine type ${selectedInstanceType} in region ${location} may be too low. \n`+
+                    `You can still try to provision the instance, but it may fail. \n` +
+                    `Current limit: ${currentQuota}\n\n` +
+                    `Checkout https://cloudypad.gg/cloud-provider-setup/azure.html for details about quotas.\n\n` +
+                    `Do you still want to continue?`,
+                    default: false,
+                })
+    
+                if(!confirmQuota){
+                    throw new Error(`Stopped instance creation: detected quota were not high enough for ${selectedInstanceType} in ${location}`)
+                }
+            } else {
+                this.logger.debug(`Detected sufficient quota for ${selectedInstanceType}: current limit ${currentQuota} for ${selectedInstanceTypeDetails.numberOfCores} cores`)
+            }
+        } else {
+            this.logger.warn(`Couldn't check quota for instance type ${instanceType}. You may have to set quota manually.` + 
+                `See https://cloudypad.gg/cloud-provider-setup/aws.html for details.`)
         }
 
         return selectedInstanceType        

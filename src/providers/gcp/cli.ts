@@ -1,7 +1,7 @@
 import { GcpInstanceInput } from "./state"
 import { CommonInstanceInput } from "../../core/state/state"
 import { input, select } from '@inquirer/prompts';
-import { AbstractInputPrompter } from "../../core/cli/prompter";
+import { AbstractInputPrompter, InstanceCreateOptions } from "../../core/cli/prompter";
 import { GcpClient } from "../../tools/gcp";
 import lodash from 'lodash'
 import { CLOUDYPAD_PROVIDER_GCP, PUBLIC_IP_TYPE } from "../../core/const";
@@ -44,9 +44,13 @@ export class GcpInputPrompter extends AbstractInputPrompter<GcpCreateCliArgs, Gc
         }
     }
 
-    protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<GcpInstanceInput>): Promise<GcpInstanceInput> {
+    protected async promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<GcpInstanceInput>, createOptions: InstanceCreateOptions): Promise<GcpInstanceInput> {
 
-        this.logger.debug(`Starting Gcp prompt with default opts: ${JSON.stringify(defaultInput)}`)
+        this.logger.debug(`Starting Gcp prompt with defaultInput: ${JSON.stringify(defaultInput)} and createOptions: ${JSON.stringify(createOptions)}`)
+
+        if(!createOptions.autoApprove){
+            await this.informCloudProviderQuotaWarning(CLOUDYPAD_PROVIDER_GCP, "https://cloudypad.gg/cloud-provider-setup/gcp.html")
+        }
         
         const projectId = await this.project(defaultInput.provision?.projectId)
         
@@ -55,10 +59,10 @@ export class GcpInputPrompter extends AbstractInputPrompter<GcpCreateCliArgs, Gc
         const region = await this.region(client, defaultInput.provision?.region)
         const zone = await this.zone(client, region, defaultInput.provision?.zone)
         const machineType = await this.machineType(client, zone, defaultInput.provision?.machineType)
+        const acceleratorType = await this.acceleratorType(client, zone, defaultInput.provision?.acceleratorType)
         const useSpot = await this.useSpotInstance(defaultInput.provision?.useSpot)
         const diskSize = await this.diskSize(defaultInput.provision?.diskSize)
         const publicIpType = await this.publicIpType(defaultInput.provision?.publicIpType)
-        const acceleratorType = await this.acceleratorType(client, zone, defaultInput.provision?.acceleratorType)
         
         const gcpInput: GcpInstanceInput = lodash.merge(
             {},
@@ -100,7 +104,7 @@ export class GcpInputPrompter extends AbstractInputPrompter<GcpCreateCliArgs, Gc
                 return a.guestCpus! - b.guestCpus!
             }) 
             .map(t => ({
-                name: `${t.name} (RAM: ${Math.round(t.memoryMb! / 100)/10} GB, CPUs: ${t.guestCpus})`,
+                name: `${t.name} (CPUs: ${t.guestCpus}, RAM: ${Math.round(t.memoryMb! / 100)/10} GiB)`,
                 value: t.name!,
             }))
         
@@ -197,7 +201,10 @@ export class GcpInputPrompter extends AbstractInputPrompter<GcpCreateCliArgs, Gc
         const acceleratorTypes = await client.listAcceleratorTypes(zone)
 
         const choices = acceleratorTypes.filter(t => t.name)
-            .filter(t => t.name && t.name.startsWith("nvidia") && !t.name.includes("vws")) // only support NVIDIA for now and remove workstations
+            .filter(t => 
+                t.name && t.name.startsWith("nvidia") && !t.name.includes("vws") && // only support NVIDIA for now and remove workstations
+                t.name != "nvidia-h100-80gb" && t.name != "nvidia-h100-mega-80gb" // not supported yet
+            ) 
             .map(t => ({name: `${t.description} (${t.name})`, value: t.name!}))
             .sort()
 

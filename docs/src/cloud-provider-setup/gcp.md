@@ -16,4 +16,6 @@ ACTIVE  ACCOUNT
 
 ## Quotas
 
-You may need to increase quota to create the desired instance type. If you get an error related to quota, see [Google Cloud Quota doc](https://cloud.google.com/docs/quotas/view-manage) to update your quotas.
+You may need to increase quota to create the desired instance type. If you get an error related to quota, see:
+- [Google Cloud Quota doc](https://cloud.google.com/docs/quotas/view-manage) to update your quotas.
+- [Your account Quota dashboard](https://console.cloud.google.com/quotas?project=_)

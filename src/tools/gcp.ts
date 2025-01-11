@@ -165,7 +165,8 @@ export class GcpClient {
         this.logger.debug(`Listing Google Cloud machine types in zone ${zone}`)
         try {
             const [machineTypes] = await this.machines.list({ project: this.projectId, zone: zone })
-            this.logger.debug(`List machine types response: ${JSON.stringify(machineTypes)}`)
+            this.logger.debug(`List machine types response: ${JSON.stringify(machineTypes.lastIndexOf)} elements`)
+            this.logger.trace(`List machine types response: ${JSON.stringify(machineTypes)}`) // very bverbose, use trace
             return machineTypes
         } catch (error) {
             this.logger.error(`Failed to list Google Cloud machine types in zone ${zone}:`, error)

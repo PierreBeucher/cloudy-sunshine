@@ -21,6 +21,7 @@ export interface InputPrompter {
 }
 
 export interface InstanceCreateOptions {
+    autoApprove?: boolean
     overwriteExisting?: boolean
 }
 
@@ -35,7 +36,7 @@ export abstract class AbstractInputPrompter<A extends CreateCliArgs, I extends C
     async promptInput(partialInput: PartialDeep<I>, createOptions: InstanceCreateOptions): Promise<I> {
         const commonInput = await this.promptCommonInput(partialInput, createOptions)
         const commonInputWithPartial = lodash.merge({}, commonInput, partialInput)
-        const finalInput = await this.promptSpecificInput(commonInputWithPartial)
+        const finalInput = await this.promptSpecificInput(commonInputWithPartial, createOptions)
         return finalInput
     }
     
@@ -71,7 +72,7 @@ export abstract class AbstractInputPrompter<A extends CreateCliArgs, I extends C
     /**
      * Prompt provider-specific input using known common Input and passed default input
      */
-    protected abstract promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<I>): Promise<I>
+    protected abstract promptSpecificInput(defaultInput: CommonInstanceInput & PartialDeep<I>, createOptions: InstanceCreateOptions): Promise<I>
 
     /**
      * Transform CLI arguments into known Input interface
@@ -93,7 +94,7 @@ export abstract class AbstractInputPrompter<A extends CreateCliArgs, I extends C
 
     async completeCliInput(cliArgs: A): Promise<I> {
         const partialInput = this.cliArgsIntoInput(cliArgs)
-        const input = await this.promptInput(partialInput, { overwriteExisting: cliArgs.overwriteExisting })
+        const input = await this.promptInput(partialInput, { overwriteExisting: cliArgs.overwriteExisting, autoApprove: cliArgs.yes })
         return input
     }
 
@@ -214,6 +215,13 @@ export abstract class AbstractInputPrompter<A extends CreateCliArgs, I extends C
             message: 'Use static Elastic IP or dynamic IP? :',
             choices: publicIpTypeChoices,
             default: PUBLIC_IP_TYPE_STATIC,
+        })
+    }
+
+    protected async informCloudProviderQuotaWarning(provider: string, helpUrl: string){
+        await input({ message: `Be aware most Cloud providers have quotas for GPU and some machine types. You may need to request a quota increase to create your instance.\n` +
+            `Checkout ${helpUrl} for details about quotas on ${provider} Cloud provider.\n\n` +
+            `Press enter to continue...`,
         })
     }
 

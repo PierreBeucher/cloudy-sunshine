@@ -2,11 +2,20 @@ import { ComputeManagementClient, VirtualMachine } from '@azure/arm-compute'
 import { DefaultAzureCredential } from '@azure/identity'
 import { getLogger, Logger } from '../log/utils'
 import { Subscription, SubscriptionClient } from '@azure/arm-subscriptions'
+import { AzureQuotaExtensionAPI, LimitObject } from "@azure/arm-quota"
 
 interface StartStopActionOpts {
     wait?: boolean
     waitTimeoutSeconds?: number
 }
+
+export interface AzureVMDetails {
+    family: string
+    subfamily?: string
+    vCpuCount: number
+    features?: string
+}
+
 
 const DEFAULT_START_STOP_OPTION_WAIT=false
 
@@ -49,16 +58,15 @@ export class AzureClient {
     private readonly credential: DefaultAzureCredential
     private readonly subsClient: SubscriptionClient
     private readonly subcriptionId: string
-
+    private readonly quotaClient: AzureQuotaExtensionAPI
     constructor(name: string, subscriptionId: string) {
         this.logger = getLogger(name)
         this.subcriptionId = subscriptionId
         this.credential = new DefaultAzureCredential()
         this.computeClient = new ComputeManagementClient(this.credential, subscriptionId)
         this.subsClient = new SubscriptionClient(this.credential)
+        this.quotaClient = new AzureQuotaExtensionAPI(this.credential)
     }
-
-
 
     async listInstances(): Promise<VirtualMachine[]> {
         this.logger.debug(`Listing Azure virtual machines`)
@@ -86,7 +94,7 @@ export class AzureClient {
                 await this.withTimeout(poller.pollUntilDone(), waitTimeout * 1000)
             }
         } catch (error) {
-            this.logger.error(`Failed to start virtual machine ${vmName}:`, error)
+            this.logger.error(`Failed to start virtual machine ${vmName}:`, { cause: error })
             throw error
         }
     }
@@ -105,7 +113,7 @@ export class AzureClient {
             }
 
         } catch (error) {
-            this.logger.error(`Failed to stop virtual machine ${vmName}:`, error)
+            this.logger.error(`Failed to stop virtual machine ${vmName}:`, { cause: error })
             throw error
         }
     }
@@ -143,13 +151,38 @@ export class AzureClient {
 
     async listMachineSizes(location: string){
 
+        this.logger.debug(`Listing Azure machine sizes in location: ${location}`)
         const vmSizesResp = this.computeClient.virtualMachineSizes.list(location);
         const vmSizes = []
         for await (const s of vmSizesResp){
             vmSizes.push(s)
         }
 
+        this.logger.debug(`Found ${vmSizes.length} machine sizes in location: ${location}`)
+
         return vmSizes
+    }
+
+    async getComputeQuota(quotaName: string, location: string): Promise<number | undefined> {
+        this.logger.debug(`Fetching compute quota ${quotaName} in location: ${location}`)
+
+        try {
+            const scope =  `subscriptions/${this.subcriptionId}/providers/Microsoft.Compute/locations/${location}`
+            const quotas = await this.quotaClient.quota.get(quotaName, scope)
+
+            this.logger.debug(`Found quota ${quotaName}: ${JSON.stringify(quotas)}`)
+
+            // somehow not recognized as LimitObject, enforce it
+            if(quotas.properties?.limit?.limitObjectType === "LimitValue"){
+                const limitValue = quotas.properties?.limit as LimitObject
+                return limitValue.value
+            } else {
+                return undefined
+            }
+
+        } catch (error) {
+            throw new Error(`Failed to check quota ${quotaName} in location ${location}`, { cause: error })
+        }
     }
 
     private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -173,4 +206,5 @@ export class AzureClient {
                 })
         })
     }
+    
 }
